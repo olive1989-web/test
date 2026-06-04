@@ -4,6 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
+import os
 
 # 페이지 설정
 st.set_page_config(
@@ -51,8 +52,15 @@ st.markdown("""
 # 데이터 로드
 @st.cache_data
 def load_data():
-    df = pd.read_csv('경쟁사_베스트_상품.csv')
-    return df
+    try:
+        if os.path.exists('경쟁사_편성표.csv'):
+            return pd.read_csv('경쟁사_편성표.csv')
+        else:
+            st.error("데이터를 불러올 수 없습니다.")
+            return pd.DataFrame()
+    except Exception as e:
+        st.error(f"데이터 로드 실패: {str(e)}")
+        return pd.DataFrame()
 
 df = load_data()
 
@@ -66,8 +74,8 @@ def generate_daily_sales():
     for date in dates:
         for category in categories:
             category_data = df[df['카테고리'] == category]
-            # 판매량 기반 매출 (가격 * 판매량)
-            daily_amount = (category_data['가격'] * category_data['판매량']).sum()
+            # 판매량 기반 매출 (가격대 * 판매량)
+            daily_amount = (category_data['가격대'] * category_data['판매량']).sum()
             # 날짜별로 약간의 변동 추가
             variation = np.random.normal(1.0, 0.15)
             daily_amount = int(daily_amount * variation * 0.1)  # 스케일 조정
@@ -170,7 +178,7 @@ with col1:
 # 오른쪽: 카테고리별 매출 비중
 with col2:
     category_sales = df.groupby('카테고리').apply(
-        lambda x: (x['가격'] * x['판매량']).sum()
+        lambda x: (x['가격대'] * x['판매량']).sum()
     ).reset_index(name='매출')
 
     colors = ['#4a7c9e', '#6b8dbf', '#8da3c4', '#b0becd', '#d4dae5',
@@ -200,8 +208,8 @@ with col2:
 st.markdown("<br>", unsafe_allow_html=True)
 st.subheader("상품 정보")
 
-display_df = df[['경쟁사명', '상품명', '카테고리', '가격', '판매량', '평점']].copy()
-display_df['가격'] = display_df['가격'].apply(lambda x: f"₩{x:,}")
+display_df = df[['경쟁사', '상품명', '카테고리', '가격대', '판매량', '평점']].copy()
+display_df['가격대'] = display_df['가격대'].apply(lambda x: f"₩{x:,}")
 display_df['판매량'] = display_df['판매량'].apply(lambda x: f"{x:,}")
 
 st.dataframe(display_df, use_container_width=True, hide_index=True)
